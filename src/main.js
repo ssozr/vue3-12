@@ -1,6 +1,6 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
-import { Field, Form, ErrorMessage, defineRule, configure } from 'vee-validate'
+import { Field, Form, ErrorMessage, defineRule, configure, } from 'vee-validate'
 import {
   required,
   email,

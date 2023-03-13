@@ -58,14 +58,16 @@
 <template>
   <div class="container-fuli">
     <div class="row">
-      <ul class="order-progress pt-4">
-        <li class="active">填寫資料</li>
-        <li :class="{active:num >= 2}">訂單確認</li>
-        <li :class="{active:num >= 3}">完成訂單</li>
+      <ul class="order-progress pt-4"> <!-- 流程 -->
+        <li class="active">訂單確認</li>
+        <li :class="{active:num >= 2}"> 填寫資料</li>
+        <li :class="{active:num >= 3}">付款成功</li>
       </ul>
     </div>
-    <div class="container-md container-fuli d-none">
-      <div class="row">
+    <div class="container"> <!-- 資料填寫 -->
+      <div class="row"> 
+        <v-form v-slot="{ errors }" @submit="onSubmit">
+          <div class="row" v-if="num === 1"> 
         <h2 class="text-center">訂單確認</h2>
         <div class="row">
           <table class="table align-middle">
@@ -127,12 +129,20 @@
             </div>
           </div>
         </div>
-      </div>
-    </div>
-    <div class="container">
-      <div class="row">
-        <v-form v-slot="{ errors }" @submit="onSubmit">
-          <div class="row">
+          </div>  
+          <div class="row" v-if="num ===2">
+            <div class="mb-3 col-md-6"> <!-- 姓名 -->
+              <label for="name" class="form-label">姓名: <span v-if="errors['姓名']" class="text-danger">{{ errors['姓名'] }}</span></label>
+              <v-field id="name"
+                name="姓名"
+                type="text"
+                class="form-control"
+                :class="{ 'is-invalid': errors['姓名'] }"
+                placeholder="請輸入 姓名" rules="required"
+                v-model="userData.user.name">
+              </v-field>
+              <error-message name="姓名" class="invalid-feedback"></error-message>
+            </div>
             <div class="mb-3 col-md-6"> <!-- 信箱 -->
               <label for="email" class="form-label">信箱: <span v-if="errors['email']" class="text-danger">{{ errors.email }}</span></label>
               <v-field id="email"
@@ -141,7 +151,7 @@
                 class="form-control"
                 :class="{ 'is-invalid': errors['email'] }"
                 placeholder="請輸入 Email" rules="email|required"
-                v-model="user.email">
+                v-model="userData.user.email">
               </v-field>
               <error-message name="email" class="invalid-feedback"></error-message>
             </div>
@@ -154,9 +164,21 @@
                 :class="{ 'is-invalid': errors['電話'] }"
                 placeholder="0912345678"
                 :rules="isPhone"
-                v-model="user.phone">
+                v-model="userData.user.phone">
               </v-field>
               <error-message name="電話" class="invalid-feedback"></error-message>
+            </div>
+            <div class="mb-3 col-md-6"> <!-- 付款方式 -->
+              <label for="payment" class="form-label">付款方式: <span v-if="errors['付款方式']" class="text-danger">{{ errors['付款方式'] }}</span></label>
+                <v-select id="payment"
+                  name="付款方式"
+                  :items="paymentOptions"
+                  class="form-control"
+                  :class="{ 'is-invalid': errors['付款方式'] }"
+                  placeholder="請選擇付款方式"
+                  v-model="userData.paymentMethod">
+                </v-select>
+                <error-message name="付款方式" class="invalid-feedback"></error-message>
             </div>
             <div class="input-group mb-3"> <!-- 地址 -->
               <label style="width: 100%;" for="地址" class="form-label">地址: <span v-if="errors['地址']" class="text-danger">{{ errors.地址 }}</span></label>
@@ -174,13 +196,19 @@
                 class="form-control"
                 :class="{ 'is-invalid': errors['地址'] }"
                 placeholder="請輸入 路段 門牌號碼" rules="required"
-                v-model="user.address"
+                v-model="userData.user.address"
                 :disabled="!address.areaName">
               </v-field>
               <error-message name="地址" class="invalid-feedback"></error-message>
             </div>
+            <div class="input-group"><!-- 留言 -->
+              <span class="input-group-text">留言區</span>
+              <textarea class="form-control" aria-label="With textarea" placeholder="可以說說自己，或是想告訴我們的" v-model="userData.message"  ></textarea>
+            </div>
           </div>
-          <button type="submit" class="btn btn-primary">Submit</button>
+          <button type="button" v-if="num === 2" @click="preBtn">上一步</button>
+          <button type="button" v-if="num === 1" @click="nextBtn">下一步</button>
+          <button type="submit" v-if="num === 2"  :disabled="errors['email','電話','地址']">送出訂單</button>
         </v-form>
       </div>
     </div>
@@ -195,35 +223,42 @@ const { VITE_URL, VITE_PATH } = import.meta.env
 export default {
     data () {
     return {
-      cartData: [],
-      dalModal: '',
-      delData: {},
-      delId: '',
+      paymentOptions:['ATM','信用卡','電信支付'],
+      num:1,
+      cartData: [], /* 購物車資料 */
+      dalModal: '', /* 刪除訂單Modal */
+      delData: {}, /* 刪除訂單資烙 */
+      delId: '', /* 刪除訂單ID */
       disabled: false,
-      addressData: '',
-      address: {
+      addressData: '', /* 縣市區域資料 */
+      address: { /* 地址填寫 */
         city: '',
         areaName: '',
         index: '',
         areaList: [],
       },
-      user: {
+      userData: { /* 訂單客戶資料 */
+        user: {
+        name: '',
         email: '',
         address: '',
         phone: ''
+      },
+      message:'',
+      paymentMethod: ''
       }
     }
   },
   components: {
   },
   methods: {
-    nextBtn(){
+    nextBtn(){ /* 流程下一步 */
       this.num ++
     },
-    preBtn(){
+    preBtn(){ /* 流程上一步 */
       this.num--
     },
-    getCartData () {
+    getCartData () { /* 獲取購物車資料 */
       this.$http.get(`${VITE_URL}/v2/api/${VITE_PATH}/cart`)
         .then((res) => {
           this.cartData = res.data.data
@@ -232,13 +267,13 @@ export default {
           console.log(err)
         })
     },
-    openDelModal (item) {
+    openDelModal (item) { /* 開啟刪除Modal */
       this.deldata = {}
       this.delModal.show()
       this.delId = item.id
       this.delData = item.product
     },
-    delCart () {
+    delCart () { /* 刪除購物車資料 */
       this.$http.delete(`${VITE_URL}/v2/api/${VITE_PATH}/cart/${this.delId}`)
       .then((res) => {
         console.log(res)
@@ -252,7 +287,7 @@ export default {
         console.log(err)
       })
     },
-    changeQty (num, id) {
+    changeQty (num, id) { /* 更改購物車產品數量 */
       this.disabled = true
       const data = {
         product_id:id,
@@ -269,7 +304,7 @@ export default {
           console.log(err)
         })
     },
-    getAddressData () {
+    getAddressData () { /* 獲取縣市區域資料 */
       this.$http.get(`https://raw.githubusercontent.com/donma/TaiwanAddressCityAreaRoadChineseEnglishJSON/master/AllData.json`)
         .then((res) => {
           this.addressData = res.data
@@ -280,22 +315,22 @@ export default {
           console.log(err)
         })
     },
-    city () {
+    city () { /* 地址填寫市區selec */
       console.log(this.address.city)
       this.address.areaName = ''
       const index = this.addressData.findIndex(item => item.CityName === this.address.city);
       this.address.index = index
       this.address.areaList = { ...this.addressData[index].AreaList }
     },
-    isPhone(value) {
-    const phoneNumber = /^(09)[0-9]{8}$/
-    return phoneNumber.test(value) ? true : '需要正確的電話號碼'
+    isPhone(value) { /* 手機號碼判斷 */
+      const phoneNumber = /^(09)[0-9]{8}$/
+      return phoneNumber.test(value) ? true : '需要正確的電話號碼'
     }
   },
   mounted () {
-    this.getCartData()
-    this.delModal = new Modal(this.$refs.delModal)
-    this.getAddressData()
+    this.getCartData() /* 獲取購物車資料 */
+    this.delModal = new Modal(this.$refs.delModal) /* Modal */
+    this.getAddressData() /* 獲取縣市區域資料 */
   }
 }
 </script>
